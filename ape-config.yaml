@@ -1,12 +1,28 @@
 name: grantscube_contracts
+
 plugins:
-  - name: solidity
-  - name: notebook
-  - name: etherscan
+  - name: polygon      
+  - name: addressbook  
+  - name: titanoboa    
+  - name: alchemy    
+  - name: notebook     
+  - name: etherscan  
+  - name: vyper      
+  - name: tokens     
+  - name: solidity     
 
-default_ecosystem: ethereum
+dependencies:
+  - name: OpenZeppelin
+    github: OpenZeppelin/openzeppelin-contracts
+    version: 4.7.1
 
-ethereum:
-  default_network: mainnet
-  mainnet:
-    default_provider: alchemy
+solidity:
+  import_remapping:
+    - "@openzeppelin/contracts=OpenZeppelin/4.7.1"
+
+# default_ecosystem: ethereum
+
+# # ethereum:
+# #   default_network: mainnet
+# #   mainnet:
+# #     default_provider: alchemy
