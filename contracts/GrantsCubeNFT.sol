@@ -52,6 +52,8 @@ contract GrantsCubeNFT is ERC721, ERC721Enumerable, ERC721Burnable, Ownable {
     event ToggleTransferable(bool transferable);
     event ToggleMintable(bool mintable);
 
+    error NotTransferrable();
+
     constructor(
         string memory name_,
         string memory symbol_,
@@ -227,6 +229,7 @@ contract GrantsCubeNFT is ERC721, ERC721Enumerable, ERC721Burnable, Ownable {
 
     //===== Internal Functions =====//
     function _mint(address to, string memory nickName) internal {
+        _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
         _tokenOwnerInfo[tokenId].nickName = nickName;
         _mintedTo[tokenId] = to;
@@ -280,7 +283,7 @@ contract GrantsCubeNFT is ERC721, ERC721Enumerable, ERC721Burnable, Ownable {
     //===== Modifiers =====//
 
     modifier isTransferable() {
-        require(transferable() == true, "SoulBoundNFT: not transferable");
+        require(transferable() == true, "GrantsCubeNFT: not transferable");
         _;
     }
 
