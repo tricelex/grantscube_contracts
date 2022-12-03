@@ -3,10 +3,12 @@ pragma solidity ^0.8.9;
 
 contract Project {
     struct Properties {
+        uint id;
         uint goal;
         uint deadline;
         string title;
         address creator;
+        string metaurl;
     }
 
     struct Contribution {
@@ -56,48 +58,52 @@ contract Project {
     modifier onlyFundingHub() {
         require(
             fundingHub == msg.sender,
-            "Only FundingHub can call this function"
+            "Not FundingHub"
         );
         _;
     }
 
     modifier onlyFunded() {
-        require(totalFunding >= properties.goal, "Project must be funded");
+        require(totalFunding >= properties.goal, "not funded");
         _;
     }
 
     constructor(
+        uint _projectId,
         uint _fundingGoal,
         uint _deadline,
         string memory _title,
-        address _creator
+        address _creator,
+        string memory _metaUrl
     ) {
         // Check to see the funding goal is greater than 0
         require(
             _fundingGoal > 0,
-            "Project funding goal must be greater than 0"
+            "goal less than 0"
         );
 
         // Check to see the deadline is in the future
         require(
             block.number < _deadline,
-            "Project deadline must be greater than the current block"
+            "less than current block"
         );
 
         // Check to see that a creator (payout) address is valid
         require(
             _creator != address(0),
-            "Project must include a valid creator address"
+            "invalid creator address"
         );
 
         fundingHub = msg.sender;
 
         // initialize properties struct
         properties = Properties({
+            id: _projectId,
             goal: _fundingGoal,
             deadline: _deadline,
             title: _title,
-            creator: _creator
+            creator: _creator,
+            metaurl: _metaUrl
         });
 
         totalFunding = 0;
@@ -107,20 +113,23 @@ contract Project {
 
     /**
      * Project values are indexed in return value:
-     * [0] -> Project.properties.title
-     * [1] -> Project.properties.goal
-     * [2] -> Project.properties.deadline
-     * [3] -> Project.properties.creator
-     * [4] -> Project.totalFunding
-     * [5] -> Project.contributionsCount
-     * [6] -> Project.contributorsCount
-     * [7] -> Project.fundingHub
-     * [8] -> Project (address)
+     * [0] -> Project.properties.id
+     * [1] -> Project.properties.title
+     * [2] -> Project.properties.goal
+     * [3] -> Project.properties.deadline
+     * [4] -> Project.properties.creator
+     * [5] -> Project.totalFunding
+     * [6] -> Project.contributionsCount
+     * [7] -> Project.contributorsCount
+     * [8] -> Project.fundingHub
+     * [9] -> Project (address)
+     * [9] -> Project.properties.metaurl
      */
     function getProject()
         public
         view
         returns (
+            uint,
             string memory,
             uint,
             uint,
@@ -129,10 +138,12 @@ contract Project {
             uint,
             uint,
             address,
-            address
+            address,
+            string memory
         )
     {
         return (
+            properties.id,
             properties.title,
             properties.goal,
             properties.deadline,
@@ -141,7 +152,8 @@ contract Project {
             contributionsCount,
             contributorsCount,
             fundingHub,
-            address(this)
+            address(this),
+            properties.metaurl
         );
     }
 
@@ -169,26 +181,47 @@ contract Project {
         // Check amount is greater than 0
         require(
             msg.value > 0,
-            "Funding contributions must be greater than 0 wei"
+            "less than 0 wei"
         );
 
         // Check funding only comes thru fundingHub
         require(
             msg.sender == fundingHub,
-            "Funding contributions can only be made through FundingHub contract"
+            "not FundingHub contract"
         );
 
         // 1. Check that the project dealine has not passed
-        require(
-            block.number < properties.deadline,
-            "Project deadline has passed"
-        );
+        if (block.number > properties.deadline) {
+            emit LogFundingFailed(
+                address(this),
+                totalFunding,
+                contributionsCount
+            );
+            if (!payable(_contributor).send(msg.value)) {
+                emit LogFailure(
+                    "Project deadline has passed, problem returning contribution"
+                );
+                revert();
+            }
+            return false;
+        }
 
         // 2. Check that funding goal has not already been met
-        require(
-            totalFunding < properties.goal,
-            "Project funding goal has already been met"
-        );
+        if (totalFunding >= properties.goal) {
+            emit LogFundingGoalReached(
+                address(this),
+                totalFunding,
+                contributionsCount
+            );
+            if (!payable(_contributor).send(msg.value)) {
+                emit LogFailure(
+                    "Project deadline has passed, problem returning contribution"
+                );
+                revert();
+            }
+            payout();
+            return false;
+        }
 
         // determine if this is a new contributor
         uint prevContributionBalance = contributors[_contributor];
@@ -251,13 +284,13 @@ contract Project {
         // Check that the project dealine has passed
         require(
             block.number > properties.deadline,
-            "Refund is only possible if project is past deadline"
+            "past deadline"
         );
 
         // Check that funding goal has not already been met
         require(
             totalFunding < properties.goal,
-            "Refund is not possible if project has met goal"
+            "project has met goal"
         );
 
         uint amount = contributors[msg.sender];

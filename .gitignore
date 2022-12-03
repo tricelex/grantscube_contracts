@@ -14,3 +14,4 @@ artifacts
 tests/__pycache__/**.pyc
 .vscode/
 .build/
+.secret
